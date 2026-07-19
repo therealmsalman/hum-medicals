@@ -1,0 +1,5 @@
+﻿import { notFound } from 'next/navigation';
+import { ContentCard } from '@/components/cards';
+import { related, topics } from '@/lib/content';
+export function generateStaticParams(){return topics.map((topic)=>({slug:topic.toLowerCase().replaceAll(' ','-')}));}
+export default function Topic({params}:{params:{slug:string}}){const topic=topics.find((name)=>name.toLowerCase().replaceAll(' ','-')===params.slug);if(!topic)return notFound();const items=related(topic);return <section className="mx-auto max-w-7xl px-5 py-16"><p className="text-sm font-bold uppercase tracking-wider text-teal">Topic library</p><h1 className="mt-2 text-5xl">{topic}</h1><p className="mt-4 text-slate-600 dark:text-slate-300">{items.length} evidence-informed publications and practical articles for clinical learners.</p><div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{items.map((item)=><ContentCard key={`${item.collection}-${item.slug}`} item={item} kind={item.collection === 'paper' ? 'publication' : 'article'}/>)}</div></section>}

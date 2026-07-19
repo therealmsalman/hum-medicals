@@ -1,0 +1,13 @@
+﻿node_modules/
+.next/
+.tools/
+.env
+.env.local
+.env.*.local
+*.log
+data/users.json
+.vercel/
+.npm-cache/
+.cf-tools-2/
+.wrangler/
+.dev.vars*
