@@ -6,7 +6,7 @@ Hum Medicals is a premium clinical-learning and publishing platform for medical 
 
 **[Open the live Hum Medicals website](https://hum-medicals.vercel.app/)**
 
-The deployment was checked on 20 July 2026. The home page, publications, articles, ECG library, AI tools, publishing, sign-in, sign-up, and account routes all returned successful responses. The live Article Generator and AI Tutor were also verified with real Gemini responses.
+The deployment was checked on 20 July 2026. The home page, publications, articles, ECG library, AI tools, publishing, sign-in, sign-up, and account routes all returned successful responses. The live Article Generator and AI Tutor were also verified with real Gemini responses. The current codebase also includes the complete-manuscript submission workflow, review-status tracker, contact fallback, and simplified subscription confirmation described below.
 
 ## The problem it solves
 
@@ -40,16 +40,16 @@ Clinical learners often face two connected problems: high-quality medical inform
 
 - Free author registration and sign-in with scrypt password hashing and signed HTTP-only sessions.
 - No payment plans, checkout screens, or submission fees.
-- Free manuscript submission for research articles, review articles, case studies, and educational articles.
-- Submission validation for title, abstract, type, originality, ethics, consent, and patient-identifiability acknowledgement.
-- Unique submission reference and `Received` status after successful submission.
-- Author workspace with a manuscript tracker.
+- Free submission of complete research articles, review articles, case studies, and educational articles.
+- Submission validation for title, abstract, complete manuscript, type, originality, ethics, consent, and patient-identifiability acknowledgement.
+- Unique submission reference and a clear `Submitted — Under Review` status after successful submission.
+- Author workspace with a manuscript tracker, abstract, and expandable complete-paper view.
 - Persistent production storage through Upstash Redis on Vercel; local JSON storage for development.
 
 ### Supporting features
 
-- Newsletter confirmation emails and real contact-form delivery through Resend.
-- Contact page with `hummedicals@gmail.com`.
+- Newsletter subscription confirmation and welcome email when Resend is configured; otherwise a successful subscription acknowledgement.
+- Contact page with `hummedicals@gmail.com`; when automated email is unavailable, the form opens a prefilled email draft addressed to Hum Medicals so the visitor can send the message directly.
 - SEO metadata, sitemap, and robots configuration.
 - Mobile-first, accessible controls, form labels, feedback messages, and keyboard-friendly interactions.
 
@@ -74,7 +74,7 @@ The system instruction requires clear professional prose, plain-text output, no 
 
 ### AI Tutor instruction
 
-The floating AI Tutor receives a learner’s question and optional selected page text. It is instructed to provide concise, supportive, step-by-step clinical-learning explanations in plain text. It must not provide personal diagnosis or treatment, invent references, or replace qualified supervision, local protocols, or clinical assessment.
+The floating AI Tutor receives a learner's question and optional selected page text. It is instructed to provide concise, supportive, step-by-step clinical-learning explanations in plain text. It must not provide personal diagnosis or treatment, invent references, or replace qualified supervision, local protocols, or clinical assessment.
 
 ### AI model and configuration
 
@@ -148,6 +148,7 @@ All screenshots below were captured from the live Vercel deployment.
 
 - Node.js 20 or later
 - A Gemini API key for AI functionality
+- Upstash Redis credentials for production accounts, manuscript tracking, and newsletter records
 
 ### Installation
 
@@ -165,8 +166,8 @@ AUTH_SECRET=replace-with-a-long-random-secret
 GEMINI_API_KEY=your-private-gemini-key
 GEMINI_MODEL=gemini-3.5-flash
 GEMINI_TUTOR_MODEL=gemini-3.1-flash-lite
-RESEND_API_KEY=your-resend-api-key
-EMAIL_FROM=Hum Medicals <updates@your-verified-domain.com>
+RESEND_API_KEY=your-resend-api-key # optional: enables automatic email delivery
+EMAIL_FROM=Hum Medicals <updates@your-verified-domain.com> # optional: must be a verified Resend domain
 CONTACT_EMAIL=hummedicals@gmail.com
 ```
 
@@ -187,7 +188,7 @@ KV_REST_API_URL=
 KV_REST_API_TOKEN=
 ```
 
-Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MODEL`, `RESEND_API_KEY`, `EMAIL_FROM`, `CONTACT_EMAIL`, and `NEXT_PUBLIC_SITE_URL` for the **Production** environment. `EMAIL_FROM` must use a domain verified in Resend. Environment-variable changes require a new deployment.
+Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MODEL`, `CONTACT_EMAIL`, and `NEXT_PUBLIC_SITE_URL` for the **Production** environment. `RESEND_API_KEY` and `EMAIL_FROM` are optional; when supplied, `EMAIL_FROM` must use a domain verified in Resend and the website sends automated subscription and contact emails. Environment-variable changes require a new deployment.
 
 ## Build verification
 
@@ -195,4 +196,4 @@ Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MO
 npm run build
 ```
 
-The project production build compiles all 427 routes successfully, including the AI Article Generator, AI Tutor, free publishing submission endpoint, account workspace, 150 publications, 150 articles, and 100 ECG case pages.
+The project production build compiles all 428 routes successfully, including the AI Article Generator, AI Tutor, free publishing submission endpoint, account workspace, 150 publications, 150 articles, and 100 ECG case pages.
