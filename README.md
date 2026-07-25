@@ -26,6 +26,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Topic browsing across cardiology, echocardiography, critical care, and related clinical disciplines.
 - Responsive premium editorial design, founder profile, contact details, YouTube channel, and social links.
 - A dedicated Get started homepage that introduces the platform and routes new users to Sign up or existing users to Sign in.
+- Signed-in visitors are redirected from the Get started homepage to their personal author workspace.
 
 ### AI learning and writing tools
 
