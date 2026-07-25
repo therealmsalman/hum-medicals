@@ -15,6 +15,7 @@ export function PublishingPortal(){
 
   async function submitWork(event:React.FormEvent<HTMLFormElement>){
     event.preventDefault();if(!account)return;
+    const form=event.currentTarget;
     setSubmitting(true);setMessage('');setSubmittedPaper(null);
     const fields=new FormData(event.currentTarget);
     const paper={title:String(fields.get('title')||''),type:String(fields.get('type')||''),abstract:String(fields.get('abstract')||''),manuscript:String(fields.get('manuscript')||'')};
@@ -22,7 +23,7 @@ export function PublishingPortal(){
       const response=await fetch('/api/publishing/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...paper,consent:fields.get('consent')==='on'})});
       const result=await response.json();
       setMessage(result.message||'Your submission has been received.');
-      if(response.ok){setSubmittedPaper({...paper,id:result.submission.id,status:result.submission.status});event.currentTarget.reset();}
+      if(response.ok){setSubmittedPaper({...paper,id:result.submission.id,status:result.submission.status});form.reset();}
     }catch{setMessage('Unable to submit your manuscript right now.');}finally{setSubmitting(false);}
   }
 
