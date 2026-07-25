@@ -48,7 +48,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 
 ### Supporting features
 
-- Newsletter subscription form.
+- Newsletter confirmation emails and real contact-form delivery through Resend.
 - Contact page with `hummedicals@gmail.com`.
 - SEO metadata, sitemap, and robots configuration.
 - Mobile-first, accessible controls, form labels, feedback messages, and keyboard-friendly interactions.
@@ -81,6 +81,7 @@ The floating AI Tutor receives a learner’s question and optional selected page
 ```env
 GEMINI_API_KEY=your-private-key
 GEMINI_MODEL=gemini-3.5-flash
+GEMINI_TUTOR_MODEL=gemini-3.1-flash-lite
 ```
 
 Add these values to the Vercel Production environment, then redeploy. Never commit API keys or prefix the key with `NEXT_PUBLIC_`.
@@ -163,6 +164,10 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 AUTH_SECRET=replace-with-a-long-random-secret
 GEMINI_API_KEY=your-private-gemini-key
 GEMINI_MODEL=gemini-3.5-flash
+GEMINI_TUTOR_MODEL=gemini-3.1-flash-lite
+RESEND_API_KEY=your-resend-api-key
+EMAIL_FROM=Hum Medicals <updates@your-verified-domain.com>
+CONTACT_EMAIL=hummedicals@gmail.com
 ```
 
 Run the development server:
@@ -182,7 +187,7 @@ KV_REST_API_URL=
 KV_REST_API_TOKEN=
 ```
 
-Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, and `NEXT_PUBLIC_SITE_URL` for the **Production** environment. Environment-variable changes require a new deployment.
+Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MODEL`, `RESEND_API_KEY`, `EMAIL_FROM`, `CONTACT_EMAIL`, and `NEXT_PUBLIC_SITE_URL` for the **Production** environment. `EMAIL_FROM` must use a domain verified in Resend. Environment-variable changes require a new deployment.
 
 ## Build verification
 
