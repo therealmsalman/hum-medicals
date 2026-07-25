@@ -10,6 +10,8 @@ function client(){
   return new Resend(apiKey);
 }
 
+export function isEmailDeliveryConfigured(){return Boolean(apiKey&&emailFrom);}
+
 export async function sendEmail(input:{to:string;subject:string;text:string;html:string;replyTo?:string}){
   const {error}=await client().emails.send({from:emailFrom!,to:input.to,subject:input.subject,text:input.text,html:input.html,replyTo:input.replyTo});
   if(error)throw new Error(`Email delivery failed: ${error.message}`);
