@@ -25,6 +25,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - 100 ECG case studies with interpretation sequences, differential diagnoses, learning points, and safety notes.
 - Topic browsing across cardiology, echocardiography, critical care, and related clinical disciplines.
 - Responsive premium editorial design, founder profile, contact details, YouTube channel, and social links.
+- A dedicated Get started homepage that introduces the platform and routes new users to Sign up or existing users to Sign in.
 
 ### AI learning and writing tools
 
@@ -49,6 +50,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 ### Supporting features
 
 - Newsletter subscription confirmation and welcome email when Resend is configured; otherwise a successful subscription acknowledgement.
+- After a successful newsletter signup, the header Subscribe action changes to a persistent green `Subscribed` status on that browser/device.
 - Contact page with `hummedicals@gmail.com`; when automated email is unavailable, the form opens a prefilled email draft addressed to Hum Medicals so the visitor can send the message directly.
 - SEO metadata, sitemap, and robots configuration.
 - Mobile-first, accessible controls, form labels, feedback messages, and keyboard-friendly interactions.
