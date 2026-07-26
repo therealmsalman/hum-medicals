@@ -27,6 +27,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Responsive premium editorial design, founder profile, contact details, YouTube channel, and social links.
 - A dedicated Get started homepage that introduces the platform and routes new users to Sign up or existing users to Sign in.
 - Signed-in visitors are redirected from the Get started homepage to their personal author workspace.
+- Installable Progressive Web App (PWA): visitors can use **Install app** to add Hum Medicals to a desktop or mobile home screen, with an offline fallback page.
 
 ### AI learning and writing tools
 
@@ -99,6 +100,7 @@ Add these values to the Vercel Production environment, then redeploy. Never comm
 | AI model | Google Gemini 3.5 Flash |
 | AI integration | Google Gemini API, server-side `generateContent` requests |
 | Deployment | Vercel |
+| Web app installation | Web App Manifest and service worker (PWA) |
 | Persistent production data | Upstash Redis through the Vercel Marketplace |
 | Authentication | Node.js crypto scrypt hashes and signed HTTP-only session cookies |
 | Word export | `docx` browser-side document generation |
@@ -182,6 +184,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Install as an app
+
+On the deployed HTTPS site, use **Install app** in the footer. Chromium browsers show the native installation prompt when available. On browsers without that prompt, use the browser menu and choose **Install app** or **Add to Home Screen**.
+
 ### Persistent accounts and submissions on Vercel
 
 For production sign-in, sign-up, and free manuscript submission, install **Upstash Redis** from the Vercel Marketplace and connect it to the Hum Medicals Vercel project. It provides these environment variables automatically:
@@ -199,4 +205,4 @@ Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MO
 npm run build
 ```
 
-The project production build compiles all 428 routes successfully, including the AI Article Generator, AI Tutor, free publishing submission endpoint, account workspace, 150 publications, 150 articles, and 100 ECG case pages.
+The project production build compiles all 430 routes successfully, including the installable web-app manifest, offline page, AI Article Generator, AI Tutor, free publishing submission endpoint, account workspace, 150 publications, 150 articles, and 100 ECG case pages.

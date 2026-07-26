@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Hum Medicals</title>
+  <rect width="512" height="512" rx="112" fill="#071a29"/>
+  <circle cx="256" cy="256" r="174" fill="#0d766f" stroke="#dcefeb" stroke-width="12"/>
+  <path d="M169 153h62v70h50v-70h62v206h-62v-79h-50v79h-62z" fill="#fff"/>
+  <path d="M128 396h256" stroke="#9de0d7" stroke-width="14" stroke-linecap="round"/>
+</svg>
