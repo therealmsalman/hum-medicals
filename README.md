@@ -106,7 +106,7 @@ Add these values to the Vercel Production environment, then redeploy. Never comm
 | Authentication | Node.js crypto scrypt hashes and signed HTTP-only session cookies |
 | Word export | `docx` browser-side document generation |
 | Icons | Lucide React |
-| Visual assets | Custom medical visuals and supplied founder imagery |
+| Visual assets | Custom medical visuals, supplied founder imagery, and the supplied Hum Medicals logo |
 
 ## Screenshots
 
