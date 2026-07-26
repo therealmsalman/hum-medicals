@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const publicPaths=new Set(['/','/sign-in','/sign-up','/offline','/manifest.webmanifest','/sw.js','/hum-medicals-icon.svg','/api/auth/signin','/api/auth/signup','/api/auth/signout','/api/auth/me']);
+const publicPaths=new Set(['/','/sign-in','/sign-up','/offline','/manifest.webmanifest','/sw.js','/hum-medicals-logo.png','/hum-medicals-icon.svg','/api/auth/signin','/api/auth/signup','/api/auth/signout','/api/auth/me']);
 const secret=process.env.AUTH_SECRET||'change-this-local-development-secret-before-production';
 
 function base64UrlToText(value:string){const padded=value.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(value.length/4)*4,'=');return atob(padded);}
