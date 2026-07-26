@@ -27,6 +27,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Responsive premium editorial design, founder profile, contact details, YouTube channel, and social links.
 - A dedicated Get started homepage that introduces the platform and routes new users to Sign up or existing users to Sign in.
 - Signed-in visitors are redirected from the Get started homepage to their personal author workspace.
+- The clinical library, AI tools, publishing, contact, and newsletter routes are protected behind a signed-in account; anonymous visitors can only access Get started, Sign in, and Sign up.
 - Installable Progressive Web App (PWA): visitors can use **Install app** to add Hum Medicals to a desktop or mobile home screen, with an offline fallback page.
 
 ### AI learning and writing tools
