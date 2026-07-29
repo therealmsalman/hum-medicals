@@ -57,6 +57,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Contact page with `hummedicals@gmail.com`; when automated email is unavailable, the form opens a prefilled email draft addressed to Hum Medicals so the visitor can send the message directly.
 - SEO metadata, sitemap, and robots configuration.
 - Mobile-first, accessible controls, form labels, feedback messages, and keyboard-friendly interactions.
+- Professional, site-wide motion design: scroll reveals, editorial text entrances, image and card hover transitions, and responsive button feedback that automatically respects reduced-motion preferences.
 
 ## AI implementation
 
