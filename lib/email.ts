@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 const emailFrom=process.env.EMAIL_FROM;
 const apiKey=process.env.RESEND_API_KEY;
-const contactEmail=process.env.CONTACT_EMAIL||'therealmsalman@gmail.com.com';
+const contactEmail=process.env.CONTACT_EMAIL||'hummedicals@gmail.com';
 const escapeHtml=(value:string)=>value.replace(/[&<>'"]/g,character=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[character]||character));
 
 function client(){
