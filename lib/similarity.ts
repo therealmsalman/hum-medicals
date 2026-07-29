@@ -1,0 +1,7 @@
+import { getAll } from '@/lib/content';
+import { getPublishedContent } from '@/lib/published-content';
+import type { SimilarityMatch } from '@/lib/submissions';
+
+function shingles(value:string){const words=value.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(word=>word.length>2).slice(0,2600);const values=new Set<string>();for(let index=0;index<=words.length-5;index+=1)values.add(words.slice(index,index+5).join(' '));return values;}
+function score(left:Set<string>,right:Set<string>){if(!left.size||!right.size)return 0;let shared=0;left.forEach(item=>{if(right.has(item))shared+=1;});return Math.round((shared/Math.min(left.size,right.size))*100);}
+export async function screenSimilarity(manuscript:string):Promise<{score:number;matches:SimilarityMatch[]}>{const target=shingles(manuscript);const library=[...getAll('paper'),...getAll('article')].map(item=>({title:item.title,text:`${item.title} ${item.abstract} ${item.body}`,source:'Hum Medicals library' as const}));const community=(await getPublishedContent()).map(item=>({title:item.title,text:`${item.title} ${item.abstract} ${item.body}`,source:'Approved community submission' as const}));const matches=[...library,...community].map(item=>({title:item.title,source:item.source,score:score(target,shingles(item.text))})).filter(item=>item.score>0).sort((a,b)=>b.score-a.score).slice(0,3);return {score:matches[0]?.score||0,matches};}

@@ -49,6 +49,10 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Unique submission reference and a clear `Submitted — Under Review` status after successful submission.
 - Author workspace with a manuscript tracker, abstract, and expandable complete-paper view.
 - Persistent production storage through Upstash Redis on Vercel; local JSON storage for development.
+- Admin editorial dashboard for `ADMIN_EMAILS` accounts, with manuscript review, author feedback statuses, and explicit approval controls.
+- Gemini-assisted editorial review for clarity, educational value, safety/ethics prompts, suggested topic, and suggested placement in Publications or Articles.
+- Internal similarity screening against the Hum Medicals library and already approved community submissions. This is a decision-support signal, not an internet-wide plagiarism certificate.
+- Only an admin approval publishes a submitted manuscript; approved work appears in the selected Articles or Publications area with its topic and author attribution.
 
 ### Supporting features
 
@@ -82,12 +86,18 @@ The system instruction requires clear professional prose, plain-text output, no 
 
 The floating AI Tutor receives a learner's question and optional selected page text. It is instructed to provide concise, supportive, step-by-step clinical-learning explanations in plain text. It must not provide personal diagnosis or treatment, invent references, or replace qualified supervision, local protocols, or clinical assessment.
 
+### Editorial AI review instruction
+
+For each admin-requested manuscript review, Gemini is instructed to assess educational quality, clarity, unsupported claims, patient-identifiability risk, consent and ethics prompts, and publication suitability. It returns a structured recommendation (`approve`, `changes`, or `reject`), strengths, concerns, safety/ethics prompts, a suggested topic, and a suggested destination (`Articles` or `Publications`). The recommendation does not publish work automatically: only an administrator can approve, request changes, reject, or publish it. The accompanying similarity result compares word sequences against the Hum Medicals library and approved community submissions; it is not an internet-wide plagiarism search or plagiarism certificate.
+
 ### AI model and configuration
 
 ```env
 GEMINI_API_KEY=your-private-key
 GEMINI_MODEL=gemini-3.5-flash
 GEMINI_TUTOR_MODEL=gemini-3.1-flash-lite
+GEMINI_EDITORIAL_MODEL=gemini-3.5-flash
+ADMIN_EMAILS=hummedicals@gmail.com
 ```
 
 Add these values to the Vercel Production environment, then redeploy. Never commit API keys or prefix the key with `NEXT_PUBLIC_`.
@@ -103,7 +113,7 @@ Add these values to the Vercel Production environment, then redeploy. Never comm
 | AI integration | Google Gemini API, server-side `generateContent` requests |
 | Deployment | Vercel |
 | Web app installation | Web App Manifest and service worker (PWA) |
-| Persistent production data | Upstash Redis through the Vercel Marketplace |
+| Persistent production data | Upstash Redis through the Vercel Marketplace (accounts, submissions, reviews, and approved author content) |
 | Authentication | Node.js crypto scrypt hashes and signed HTTP-only session cookies |
 | Word export | `docx` browser-side document generation |
 | Icons | Lucide React |
@@ -199,7 +209,7 @@ KV_REST_API_URL=
 KV_REST_API_TOKEN=
 ```
 
-Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MODEL`, `CONTACT_EMAIL`, and `NEXT_PUBLIC_SITE_URL` for the **Production** environment. `RESEND_API_KEY` and `EMAIL_FROM` are optional; when supplied, `EMAIL_FROM` must use a domain verified in Resend and the website sends automated subscription and contact emails. Environment-variable changes require a new deployment.
+Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MODEL`, `GEMINI_EDITORIAL_MODEL`, `ADMIN_EMAILS`, `CONTACT_EMAIL`, and `NEXT_PUBLIC_SITE_URL` for the **Production** environment. `ADMIN_EMAILS` is a comma-separated list of administrator account emails and defaults to `hummedicals@gmail.com` if not supplied. `RESEND_API_KEY` and `EMAIL_FROM` are optional; when supplied, `EMAIL_FROM` must use a domain verified in Resend and the website sends automated subscription and contact emails. Environment-variable changes require a new deployment.
 
 ## Build verification
 
@@ -207,4 +217,4 @@ Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MO
 npm run build
 ```
 
-The project production build compiles all 430 routes successfully, including the installable web-app manifest, offline page, AI Article Generator, AI Tutor, free publishing submission endpoint, account workspace, 150 publications, 150 articles, and 100 ECG case pages.
+The project production build compiles all 433 routes successfully, including the installable web-app manifest, offline page, AI Article Generator, AI Tutor, free publishing submission endpoint, author workspace, admin editorial dashboard, Gemini review endpoints, 150 publications, 150 articles, and 100 ECG case pages.
