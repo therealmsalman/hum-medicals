@@ -26,7 +26,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Topic browsing across cardiology, echocardiography, critical care, and related clinical disciplines.
 - Responsive premium editorial design, founder profile, contact details, YouTube channel, and social links.
 - A dedicated Get started homepage that introduces the platform and routes new users to Sign up or existing users to Sign in.
-- Signed-in visitors are redirected from the Get started homepage to their personal author workspace.
+- A professional signed-in home workspace with direct, visual routes to Publications, Articles, Topics, ECG Cases, AI Tools, publishing, and the personal account.
 - The clinical library, AI tools, publishing, contact, and newsletter routes are protected behind a signed-in account; anonymous visitors can only access Get started, Sign in, and Sign up.
 - Installable Progressive Web App (PWA): visitors can use **Install app** to add Hum Medicals to a desktop or mobile home screen, with an offline fallback page.
 
@@ -36,7 +36,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Clean output formatting that removes Markdown symbols, code blocks, and LaTex-style formulas.
 - One-click Copy action for generated articles.
 - Editable Microsoft Word export (`.docx`) for generated articles.
-- Floating AI Tutor available on every page.
+- Floating AI Tutor available on every page; move it by dragging the floating button or the handle in its open header.
 - Text-selection tutoring: select text anywhere on the site and choose **Ask tutor**.
 - Manual tutoring: open the floating tutor and ask any clinical-learning question.
 
@@ -49,10 +49,10 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Unique submission reference and a clear `Submitted — Under Review` status after successful submission.
 - Author workspace with a manuscript tracker, abstract, and expandable complete-paper view.
 - Persistent production storage through Upstash Redis on Vercel; local JSON storage for development.
-- Admin editorial dashboard for `ADMIN_EMAILS` accounts, with manuscript review, author feedback statuses, and explicit approval controls.
+- Admin editorial dashboard for `ADMIN_EMAILS` accounts, separated into a pending-approvals review queue and an approved/live-work record, with manuscript review, author feedback statuses, and explicit approval controls.
 - Gemini-assisted editorial review for clarity, educational value, safety/ethics prompts, suggested topic, and suggested placement in Publications or Articles.
 - Internal similarity screening against the Hum Medicals library and already approved community submissions. This is a decision-support signal, not an internet-wide plagiarism certificate.
-- Only an admin approval publishes a submitted manuscript; approved work appears in the selected Articles or Publications area with its topic and author attribution.
+- Only an admin approval publishes a submitted manuscript; approved work appears first in the Recent approved publications area of the selected Articles or Publications library, with its topic and author attribution.
 
 ### Supporting features
 
@@ -61,7 +61,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Contact page with `hummedicals@gmail.com`; when automated email is unavailable, the form opens a prefilled email draft addressed to Hum Medicals so the visitor can send the message directly.
 - SEO metadata, sitemap, and robots configuration.
 - Mobile-first, accessible controls, form labels, feedback messages, and keyboard-friendly interactions.
-- Professional, site-wide motion design: scroll reveals, editorial text entrances, image and card hover transitions, and responsive button feedback that automatically respects reduced-motion preferences.
+- Professional, site-wide motion design: scroll reveals, editorial text entrances, home-workspace cards, recent-publication and dashboard animation, image/card hover transitions, and responsive button feedback that automatically respects reduced-motion preferences.
 
 ## AI implementation
 
