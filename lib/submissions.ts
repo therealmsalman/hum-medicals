@@ -1,6 +1,4 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { getSupabase, supabaseStorageError } from './supabase';
 
 export type EditorialStatus = 'submitted' | 'reviewed' | 'approved' | 'changes_requested' | 'rejected';
@@ -40,26 +38,7 @@ export type Submission = {
   adminNote?: string;
 };
 
-const submissionsPath = path.join(process.cwd(), 'data', 'submissions.json');
-const isHosted = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL) || Boolean(process.env.CF_PAGES);
-
-function readLocal(): Submission[] {
-  try {
-    return JSON.parse(fs.readFileSync(submissionsPath, 'utf8') || '[]') as Submission[];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocal(items: Submission[]) {
-  try {
-    fs.mkdirSync(path.dirname(submissionsPath), { recursive: true });
-    fs.writeFileSync(submissionsPath, JSON.stringify(items, null, 2));
-  } catch {
-    // Ignore filesystem write errors in read-only hosted environments
-  }
-}
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapRowToSubmission(row: any): Submission {
   return {
     id: row.id,
@@ -101,71 +80,59 @@ export async function createSubmission(input: Omit<Submission, 'id' | 'status' |
   };
 
   const supabase = getSupabase();
-  if (supabase) {
-    const { error } = await supabase.from('submissions').insert({
-      id: submission.id,
-      author_id: submission.authorId,
-      author_name: submission.authorName,
-      author_email: submission.authorEmail,
-      title: submission.title,
-      type: submission.type,
-      topic: submission.topic,
-      abstract: submission.abstract,
-      manuscript: submission.manuscript,
-      status: submission.status,
-      created_at: submission.createdAt,
-    });
-    if (error) throw new Error(error.message);
-    return submission;
-  }
+  if (!supabase) throw supabaseStorageError();
 
-  if (isHosted) throw supabaseStorageError();
-  const items = readLocal();
-  items.unshift(submission);
-  writeLocal(items);
+  const { error } = await supabase.from('submissions').insert({
+    id: submission.id,
+    author_id: submission.authorId,
+    author_name: submission.authorName,
+    author_email: submission.authorEmail,
+    title: submission.title,
+    type: submission.type,
+    topic: submission.topic,
+    abstract: submission.abstract,
+    manuscript: submission.manuscript,
+    status: submission.status,
+    created_at: submission.createdAt,
+  });
+  if (error) throw new Error(error.message);
   return submission;
 }
 
 export async function getSubmission(id: string): Promise<Submission | null> {
   const supabase = getSupabase();
-  if (supabase) {
-    const { data, error } = await supabase.from('submissions').select('*').eq('id', id).maybeSingle();
-    if (error) throw new Error(error.message);
-    return data ? mapRowToSubmission(data) : null;
-  }
-  if (isHosted) throw supabaseStorageError();
-  return readLocal().find((item) => item.id === id) || null;
+  if (!supabase) throw supabaseStorageError();
+
+  const { data, error } = await supabase.from('submissions').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapRowToSubmission(data) : null;
 }
 
 export async function getSubmissionsForAuthor(authorId: string): Promise<Submission[]> {
   const supabase = getSupabase();
-  if (supabase) {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('*')
-      .eq('author_id', authorId)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    if (error) throw new Error(error.message);
-    return (data || []).map(mapRowToSubmission);
-  }
-  if (isHosted) throw supabaseStorageError();
-  return readLocal().filter((item) => item.authorId === authorId);
+  if (!supabase) throw supabaseStorageError();
+
+  const { data, error } = await supabase
+    .from('submissions')
+    .select('*')
+    .eq('author_id', authorId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapRowToSubmission);
 }
 
 export async function getAllSubmissions(): Promise<Submission[]> {
   const supabase = getSupabase();
-  if (supabase) {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
-    if (error) throw new Error(error.message);
-    return (data || []).map(mapRowToSubmission);
-  }
-  if (isHosted) throw supabaseStorageError();
-  return readLocal();
+  if (!supabase) throw supabaseStorageError();
+
+  const { data, error } = await supabase
+    .from('submissions')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapRowToSubmission);
 }
 
 export async function updateSubmission(
@@ -177,28 +144,25 @@ export async function updateSubmission(
   const updated: Submission = { ...current, ...changes };
 
   const supabase = getSupabase();
-  if (supabase) {
-    const { error } = await supabase
-      .from('submissions')
-      .update({
-        title: updated.title,
-        type: updated.type,
-        topic: updated.topic,
-        abstract: updated.abstract,
-        manuscript: updated.manuscript,
-        status: updated.status,
-        review: (updated.review as any) || null,
-        published_slug: updated.publishedSlug || null,
-        published_collection: updated.publishedCollection || null,
-        admin_note: updated.adminNote || null,
-      })
-      .eq('id', id);
-    if (error) throw new Error(error.message);
-    return updated;
-  }
+  if (!supabase) throw supabaseStorageError();
 
-  if (isHosted) throw supabaseStorageError();
-  const items = readLocal().map((item) => (item.id === id ? updated : item));
-  writeLocal(items);
+  const { error } = await supabase
+    .from('submissions')
+    .update({
+      title: updated.title,
+      type: updated.type,
+      topic: updated.topic,
+      abstract: updated.abstract,
+      manuscript: updated.manuscript,
+      status: updated.status,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      review: (updated.review as any) || null,
+      published_slug: updated.publishedSlug || null,
+      published_collection: updated.publishedCollection || null,
+      admin_note: updated.adminNote || null,
+    })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
   return updated;
 }
+

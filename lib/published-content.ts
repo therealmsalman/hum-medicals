@@ -1,6 +1,4 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { getSupabase, supabaseStorageError } from './supabase';
 
 export type PublishedContent = {
@@ -19,26 +17,7 @@ export type PublishedContent = {
   sourceSubmissionId: string;
 };
 
-const publishedPath = path.join(process.cwd(), 'data', 'published-submissions.json');
-const isHosted = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL) || Boolean(process.env.CF_PAGES);
-
-function readLocal(): PublishedContent[] {
-  try {
-    return JSON.parse(fs.readFileSync(publishedPath, 'utf8') || '[]') as PublishedContent[];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocal(items: PublishedContent[]) {
-  try {
-    fs.mkdirSync(path.dirname(publishedPath), { recursive: true });
-    fs.writeFileSync(publishedPath, JSON.stringify(items, null, 2));
-  } catch {
-    // Ignore filesystem write errors in read-only hosted environments
-  }
-}
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapRowToPublished(row: any): PublishedContent {
   return {
     id: row.id,
@@ -78,67 +57,57 @@ export async function createPublishedContent(
   };
 
   const supabase = getSupabase();
-  if (supabase) {
-    const { error } = await supabase.from('published_content').insert({
-      id: item.id,
-      slug: item.slug,
-      title: item.title,
-      author: item.author,
-      date: item.date,
-      topic: item.topic,
-      type: item.type,
-      abstract: item.abstract,
-      body: item.body,
-      tags: item.tags,
-      references: item.references,
-      collection: item.collection,
-      source_submission_id: item.sourceSubmissionId,
-    });
-    if (error) throw new Error(error.message);
-    return item;
-  }
+  if (!supabase) throw supabaseStorageError();
 
-  if (isHosted) throw supabaseStorageError();
-  const items = readLocal();
-  items.unshift(item);
-  writeLocal(items);
+  const { error } = await supabase.from('published_content').insert({
+    id: item.id,
+    slug: item.slug,
+    title: item.title,
+    author: item.author,
+    date: item.date,
+    topic: item.topic,
+    type: item.type,
+    abstract: item.abstract,
+    body: item.body,
+    tags: item.tags,
+    references: item.references,
+    collection: item.collection,
+    source_submission_id: item.sourceSubmissionId,
+  });
+  if (error) throw new Error(error.message);
   return item;
 }
 
 export async function getPublishedContent(collection?: 'paper' | 'article'): Promise<PublishedContent[]> {
   const supabase = getSupabase();
-  if (supabase) {
-    let query = supabase
-      .from('published_content')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
+  if (!supabase) throw supabaseStorageError();
 
-    if (collection) {
-      query = query.eq('collection', collection);
-    }
+  let query = supabase
+    .from('published_content')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500);
 
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return (data || []).map(mapRowToPublished);
+  if (collection) {
+    query = query.eq('collection', collection);
   }
 
-  if (isHosted) throw supabaseStorageError();
-  return readLocal().filter((item) => !collection || item.collection === collection);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapRowToPublished);
 }
 
 export async function getPublishedBySlug(slug: string): Promise<PublishedContent | null> {
   const supabase = getSupabase();
-  if (supabase) {
-    const { data, error } = await supabase
-      .from('published_content')
-      .select('*')
-      .eq('slug', slug)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return data ? mapRowToPublished(data) : null;
-  }
+  if (!supabase) throw supabaseStorageError();
 
-  if (isHosted) throw supabaseStorageError();
-  return readLocal().find((item) => item.slug === slug) || null;
+  const { data, error } = await supabase
+    .from('published_content')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data ? mapRowToPublished(data) : null;
 }
+
