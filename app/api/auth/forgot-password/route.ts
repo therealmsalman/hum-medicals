@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { findUserByEmail, createAuthAction } from '@/lib/auth';
+import { getSupabaseAuthClient } from '@/lib/supabase';
 import { isEmailDeliveryConfigured, sendPasswordResetEmail } from '@/lib/email';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
@@ -13,6 +14,19 @@ export async function POST(request: Request) {
 
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       return NextResponse.json({ message: 'Please enter a valid email address.' }, { status: 400 });
+    }
+
+    const authClient = getSupabaseAuthClient();
+    if (authClient) {
+      const siteUrl =
+        request.headers.get('origin') ||
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        'http://localhost:3000';
+      await authClient.auth.resetPasswordForEmail(email, {
+        redirectTo: `${siteUrl.replace(/\/$/, '')}/auth/callback?next=/reset-password`,
+      }).catch((err) => {
+        console.warn('[Auth] Supabase reset password warning:', err.message);
+      });
     }
 
     const user = await findUserByEmail(email);

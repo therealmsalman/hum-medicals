@@ -2,14 +2,14 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { cookies } from 'next/headers';
-import { getSupabase, supabaseStorageError } from './supabase';
+import { getSupabase, getSupabaseAuthClient, getSupabaseAdmin, supabaseStorageError } from './supabase';
 
 export type User = {
   id: string;
   name: string;
   email: string;
-  passwordHash: string;
-  salt: string;
+  passwordHash?: string;
+  salt?: string;
   createdAt: string;
   sessionVersion: number;
   emailVerifiedAt?: string;
@@ -123,19 +123,40 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 async function findUserById(id: string): Promise<User | null> {
   const supabase = getSupabase();
   if (supabase) {
-    const { data, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return null;
-    return normalizedUser({
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      passwordHash: data.password_hash,
-      salt: data.salt,
-      sessionVersion: data.session_version,
-      emailVerifiedAt: data.email_verified_at || undefined,
-      createdAt: data.created_at,
-    });
+    const { data } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+    if (data) {
+      return normalizedUser({
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        passwordHash: data.password_hash,
+        salt: data.salt,
+        sessionVersion: data.session_version,
+        emailVerifiedAt: data.email_verified_at || undefined,
+        createdAt: data.created_at,
+      });
+    }
+
+    const admin = getSupabaseAdmin();
+    if (admin) {
+      const { data: authData } = await admin.auth.admin.getUserById(id);
+      if (authData?.user) {
+        const u = authData.user;
+        const name = u.user_metadata?.name || u.email?.split('@')[0] || 'Author';
+        const email = u.email?.toLowerCase().trim() || '';
+        return normalizedUser({
+          id: u.id,
+          name,
+          email,
+          passwordHash: 'managed_by_supabase_auth',
+          salt: 'supabase_auth',
+          sessionVersion: 1,
+          createdAt: u.created_at || new Date().toISOString(),
+          emailVerifiedAt: u.email_confirmed_at || undefined,
+        });
+      }
+    }
+    return null;
   }
   if (isHosted) throw supabaseStorageError();
   return readLocal<User[]>(usersPath, []).map(normalizedUser).find((u) => u.id === id) || null;
@@ -147,15 +168,18 @@ async function saveUser(user: User): Promise<User> {
   if (supabase) {
     const { error } = await supabase
       .from('users')
-      .update({
-        name: next.name,
-        email: next.email,
-        password_hash: next.passwordHash,
-        salt: next.salt,
-        session_version: next.sessionVersion,
-        email_verified_at: next.emailVerifiedAt || null,
-      })
-      .eq('id', next.id);
+      .upsert(
+        {
+          id: next.id,
+          name: next.name,
+          email: next.email,
+          password_hash: next.passwordHash || 'managed_by_supabase_auth',
+          salt: next.salt || 'supabase_auth',
+          session_version: next.sessionVersion,
+          email_verified_at: next.emailVerifiedAt || null,
+        },
+        { onConflict: 'id' }
+      );
     if (error) throw new Error(error.message);
     return next;
   }
@@ -168,10 +192,128 @@ async function saveUser(user: User): Promise<User> {
   return next;
 }
 
-export async function createUser(name: string, email: string, password: string): Promise<User> {
+export async function createUser(
+  name: string,
+  email: string,
+  password: string
+): Promise<{ user: User; requiresConfirmation: boolean }> {
   const normalized = normalizedEmail(email);
+  const authClient = getSupabaseAuthClient();
+  const db = getSupabase();
+
+  if (authClient) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const emailRedirectTo = `${siteUrl}/auth/callback`;
+
+    // 1. Attempt signup with Supabase Auth (anon client triggers email confirmations)
+    const { data, error } = await authClient.auth.signUp({
+      email: normalized,
+      password,
+      options: {
+        data: { name: name.trim() },
+        emailRedirectTo,
+      },
+    });
+
+    if (error) {
+      // If over email send rate limit on Supabase default pool:
+      if (error.code === 'over_email_send_rate_limit' || error.status === 429) {
+        const adminClient = getSupabaseAdmin();
+        if (adminClient) {
+          console.warn('[Auth] Supabase email rate limit exceeded on default pool. Creating user via admin client.');
+          const { data: adminData, error: adminErr } = await adminClient.auth.admin.createUser({
+            email: normalized,
+            password,
+            user_metadata: { name: name.trim() },
+            email_confirm: false,
+          });
+          if (adminErr) {
+            if (adminErr.message.toLowerCase().includes('already registered')) {
+              throw new Error('An account with this email already exists in Supabase.');
+            }
+            throw new Error(adminErr.message);
+          }
+          if (adminData.user) {
+            const authUser = adminData.user;
+            const newUser: User = {
+              id: authUser.id,
+              name: name.trim(),
+              email: normalized,
+              createdAt: authUser.created_at || new Date().toISOString(),
+              sessionVersion: 1,
+            };
+            if (db) {
+              await db.from('users').upsert(
+                {
+                  id: authUser.id,
+                  name: name.trim(),
+                  email: normalized,
+                  password_hash: 'managed_by_supabase_auth',
+                  salt: 'supabase_auth',
+                  session_version: 1,
+                  created_at: newUser.createdAt,
+                },
+                { onConflict: 'id' }
+              );
+            }
+            return { user: newUser, requiresConfirmation: true };
+          }
+        }
+        throw new Error(
+          'Supabase email sending rate limit reached (free tier allows limited emails/hour on default pool). Please wait a few minutes or configure custom SMTP in Supabase.'
+        );
+      }
+
+      if (error.message.toLowerCase().includes('already registered') || error.code === 'user_already_exists') {
+        throw new Error('An account with this email already exists in Supabase. Please sign in or use forgot password.');
+      }
+
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
+      throw new Error('Unable to create author account in Supabase.');
+    }
+
+    const authUser = data.user;
+    const isConfirmed = Boolean(authUser.email_confirmed_at || data.session);
+    const requiresConfirmation = !isConfirmed;
+
+    const newUser: User = {
+      id: authUser.id,
+      name: name.trim(),
+      email: normalized,
+      createdAt: authUser.created_at || new Date().toISOString(),
+      sessionVersion: 1,
+      emailVerifiedAt: authUser.email_confirmed_at || undefined,
+    };
+
+    // Sync into public.users
+    if (db) {
+      await db.from('users').upsert(
+        {
+          id: authUser.id,
+          name: name.trim(),
+          email: normalized,
+          password_hash: 'managed_by_supabase_auth',
+          salt: 'supabase_auth',
+          session_version: 1,
+          email_verified_at: authUser.email_confirmed_at || null,
+          created_at: newUser.createdAt,
+        },
+        { onConflict: 'id' }
+      );
+    }
+
+    return { user: newUser, requiresConfirmation };
+  }
+
+  // Local fallback (offline development)
+  if (isHosted) throw supabaseStorageError();
+  const users = readLocal<User[]>(usersPath, []);
+  if (users.some((item) => item.email === normalized)) throw new Error('An account with this email already exists.');
   const salt = crypto.randomBytes(16).toString('hex');
-  const user: User = {
+  const localUser: User = {
     id: crypto.randomUUID(),
     name: name.trim(),
     email: normalized,
@@ -180,43 +322,69 @@ export async function createUser(name: string, email: string, password: string):
     createdAt: new Date().toISOString(),
     sessionVersion: 1,
   };
-
-  const supabase = getSupabase();
-  if (supabase) {
-    const { data: existing } = await supabase.from('users').select('id').eq('email', normalized).maybeSingle();
-    if (existing) throw new Error('An account with this email already exists.');
-
-    const { error } = await supabase.from('users').insert({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      password_hash: user.passwordHash,
-      salt: user.salt,
-      session_version: user.sessionVersion,
-      created_at: user.createdAt,
-    });
-    if (error) {
-      if (error.code === '42501') {
-        throw new Error(
-          'Supabase Row-Level Security blocked this registration. Please run the RLS update in Supabase SQL Editor or supply SUPABASE_SERVICE_ROLE_KEY in .env.local.'
-        );
-      }
-      throw new Error(error.message);
-    }
-    return user;
-  }
-
-  if (isHosted) throw supabaseStorageError();
-  const users = readLocal<User[]>(usersPath, []);
-  if (users.some((item) => item.email === normalized)) throw new Error('An account with this email already exists.');
-  users.push(user);
+  users.push(localUser);
   writeLocal(usersPath, users);
-  return user;
+  return { user: localUser, requiresConfirmation: false };
 }
 
 export async function authenticate(email: string, password: string): Promise<User | null> {
+  const normalized = normalizedEmail(email);
+  const authClient = getSupabaseAuthClient();
+  const db = getSupabase();
+
+  if (authClient) {
+    const { data, error } = await authClient.auth.signInWithPassword({
+      email: normalized,
+      password,
+    });
+
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes('email not confirmed')) {
+        throw new Error(
+          'Your email address has not been confirmed yet. Please check your inbox and spam folder for the verification link sent by Supabase, and click the link to activate your account.'
+        );
+      }
+      return null;
+    }
+
+    if (!data.user) return null;
+
+    const authUser = data.user;
+    const name = authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Author';
+
+    const user: User = {
+      id: authUser.id,
+      name,
+      email: normalized,
+      sessionVersion: 1,
+      createdAt: authUser.created_at || new Date().toISOString(),
+      emailVerifiedAt: authUser.email_confirmed_at || undefined,
+    };
+
+    // Sync into public.users
+    if (db) {
+      await db.from('users').upsert(
+        {
+          id: authUser.id,
+          name,
+          email: normalized,
+          password_hash: 'managed_by_supabase_auth',
+          salt: 'supabase_auth',
+          session_version: 1,
+          email_verified_at: authUser.email_confirmed_at || new Date().toISOString(),
+          created_at: user.createdAt,
+        },
+        { onConflict: 'id' }
+      );
+    }
+
+    return user;
+  }
+
+  // Local fallback
   const user = await findUserByEmail(email);
-  if (!user) return null;
+  if (!user || !user.passwordHash || !user.salt) return null;
   const expected = Buffer.from(user.passwordHash, 'hex');
   const received = Buffer.from(hash(password, user.salt), 'hex');
   return expected.length === received.length && crypto.timingSafeEqual(expected, received) ? user : null;
@@ -400,12 +568,18 @@ export async function setEmailVerified(userId: string): Promise<User> {
 export async function resetPasswordForUser(userId: string, password: string): Promise<User> {
   const user = await findUserById(userId);
   if (!user) throw new Error('Account not found.');
+
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    await admin.auth.admin.updateUserById(userId, { password });
+  }
+
   const salt = crypto.randomBytes(16).toString('hex');
   const updated = await saveUser({
     ...user,
     salt,
     passwordHash: hash(password, salt),
-    sessionVersion: user.sessionVersion + 1,
+    sessionVersion: (user.sessionVersion || 1) + 1,
   });
   await removeAllSessions(userId);
   return updated;
@@ -415,6 +589,11 @@ export async function deleteAccount(userId: string): Promise<void> {
   const user = await findUserById(userId);
   if (!user) throw new Error('Account not found.');
   await removeAllSessions(userId);
+
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    await admin.auth.admin.deleteUser(userId).catch(() => {});
+  }
 
   const supabase = getSupabase();
   if (supabase) {

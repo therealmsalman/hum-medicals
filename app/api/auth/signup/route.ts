@@ -14,12 +14,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Use a password with at least 8 characters.' }, { status: 400 });
     }
 
-    const user = await createUser(name, email, password);
+    const { user, requiresConfirmation } = await createUser(name, email, password);
+
+    if (requiresConfirmation) {
+      return NextResponse.json(
+        {
+          requiresConfirmation: true,
+          message:
+            'Account created! A verification email has been sent by Supabase. Please check your inbox and spam folder to confirm your email before signing in.',
+          user: publicUser(user),
+        },
+        { status: 201 }
+      );
+    }
 
     const isSecure = request.url.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
     const token = await setSession(user, isSecure);
 
-    const response = NextResponse.json({ user: publicUser(user) }, { status: 201 });
+    const response = NextResponse.json({ user: publicUser(user), requiresConfirmation: false }, { status: 201 });
     response.cookies.set('hum_medicals_session', token, {
       httpOnly: true,
       secure: isSecure,

@@ -28,9 +28,11 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     console.error('[Auth] Sign in error:', error);
+    const message = error instanceof Error ? error.message : 'Unable to sign in.';
+    const isUnconfirmed = message.toLowerCase().includes('confirm your email') || message.toLowerCase().includes('email not confirmed');
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : 'Unable to sign in.' },
-      { status: 503 }
+      { message, unconfirmed: isUnconfirmed },
+      { status: isUnconfirmed ? 403 : 401 }
     );
   }
 }

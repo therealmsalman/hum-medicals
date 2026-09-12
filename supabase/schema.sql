@@ -6,17 +6,21 @@
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. Users Table
+-- 1. Users Table (Profile registry synchronized with Supabase Auth)
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  salt TEXT NOT NULL,
+  password_hash TEXT DEFAULT 'managed_by_supabase_auth',
+  salt TEXT DEFAULT 'supabase_auth',
   session_version INT NOT NULL DEFAULT 1,
   email_verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Ensure nullable for existing tables
+ALTER TABLE public.users ALTER COLUMN password_hash DROP NOT NULL;
+ALTER TABLE public.users ALTER COLUMN salt DROP NOT NULL;
 
 -- 2. Sessions Table
 CREATE TABLE IF NOT EXISTS public.sessions (
