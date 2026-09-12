@@ -48,7 +48,7 @@ Clinical learners often face two connected problems: high-quality medical inform
 - Submission validation for title, abstract, complete manuscript, type, originality, ethics, consent, and patient-identifiability acknowledgement.
 - Unique submission reference and a clear `Submitted — Under Review` status after successful submission.
 - Author workspace with a manuscript tracker, abstract, and expandable complete-paper view.
-- Persistent production storage through Upstash Redis on Vercel; local JSON storage for development.
+- Persistent production storage through Supabase PostgreSQL; local JSON storage for offline development.
 - Admin editorial dashboard for `ADMIN_EMAILS` accounts, separated into a pending-approvals review queue and an approved/live-work record, with manuscript review, author feedback statuses, and explicit approval controls.
 - Gemini-assisted editorial review for clarity, educational value, safety/ethics prompts, suggested topic, and suggested placement in Publications or Articles.
 - Internal similarity screening against the Hum Medicals library and already approved community submissions. This is a decision-support signal, not an internet-wide plagiarism certificate.
@@ -113,7 +113,7 @@ Add these values to the Vercel Production environment, then redeploy. Never comm
 | AI integration | Google Gemini API, server-side `generateContent` requests |
 | Deployment | Vercel |
 | Web app installation | Web App Manifest and service worker (PWA) |
-| Persistent production data | Upstash Redis through the Vercel Marketplace (accounts, submissions, reviews, and approved author content) |
+| Persistent production data | Supabase PostgreSQL (accounts, sessions, submissions, reviews, and approved author content) |
 | Authentication | Node.js crypto scrypt hashes and signed HTTP-only session cookies |
 | Word export | `docx` browser-side document generation |
 | Icons | Lucide React |
@@ -165,7 +165,7 @@ All screenshots below were captured from the live Vercel deployment.
 
 - Node.js 20 or later
 - A Gemini API key for AI functionality
-- Upstash Redis credentials for production accounts, manuscript tracking, and newsletter records
+- Supabase credentials for production accounts, manuscript tracking, and newsletter records
 
 ### Installation
 
@@ -180,6 +180,9 @@ Create `.env.local` in the project root:
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 AUTH_SECRET=replace-with-a-long-random-secret
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 GEMINI_API_KEY=your-private-gemini-key
 GEMINI_MODEL=gemini-3.5-flash
 GEMINI_TUTOR_MODEL=gemini-3.1-flash-lite
@@ -200,13 +203,19 @@ Open [http://localhost:3000](http://localhost:3000).
 
 On the deployed HTTPS site, use **Install app** in the footer. Chromium browsers show the native installation prompt when available. On browsers without that prompt, use the browser menu and choose **Install app** or **Add to Home Screen**.
 
-### Persistent accounts and submissions on Vercel
+### Persistent accounts and database setup with Supabase
 
-For production sign-in, sign-up, and free manuscript submission, install **Upstash Redis** from the Vercel Marketplace and connect it to the Hum Medicals Vercel project. It provides these environment variables automatically:
+For production sign-in, sign-up, author manuscript tracking, and community publishing, set up a free **Supabase** project:
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open the **SQL Editor** in the Supabase Dashboard.
+3. Run the schema script located in `supabase/schema.sql`.
+4. Copy your project credentials from **Project Settings -> API** and add them to your production environment variables (e.g. on Vercel or Cloudflare):
 
 ```env
-KV_REST_API_URL=
-KV_REST_API_TOKEN=
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 Also configure `AUTH_SECRET`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TUTOR_MODEL`, `GEMINI_EDITORIAL_MODEL`, `ADMIN_EMAILS`, `CONTACT_EMAIL`, and `NEXT_PUBLIC_SITE_URL` for the **Production** environment. `ADMIN_EMAILS` is a comma-separated list of administrator account emails and defaults to `hummedicals@gmail.com` if not supplied. `RESEND_API_KEY` and `EMAIL_FROM` are optional; when supplied, `EMAIL_FROM` must use a domain verified in Resend and the website sends automated subscription and contact emails. Environment-variable changes require a new deployment.

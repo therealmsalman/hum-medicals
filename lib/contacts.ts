@@ -1,25 +1,54 @@
 import fs from 'fs';
 import path from 'path';
-import { Redis } from '@upstash/redis';
+import { getSupabase, supabaseStorageError } from './supabase';
 
-export type ContactMessage={name:string;email:string;subject:string;message:string;receivedAt:string};
-const contactsPath=path.join(process.cwd(),'data','contact-messages.json');
-const redisUrl=process.env.KV_REST_API_URL||process.env.UPSTASH_REDIS_REST_URL;
-const redisToken=process.env.KV_REST_API_TOKEN||process.env.UPSTASH_REDIS_REST_TOKEN;
-const redis=redisUrl&&redisToken?new Redis({url:redisUrl,token:redisToken}):null;
-const isHosted=process.env.NODE_ENV==='production'||Boolean(process.env.VERCEL);
+export type ContactMessage = {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  receivedAt: string;
+};
 
-function readLocal(){try{return JSON.parse(fs.readFileSync(contactsPath,'utf8')||'[]') as ContactMessage[];}catch{return [];}}
-function writeLocal(items:ContactMessage[]){fs.mkdirSync(path.dirname(contactsPath),{recursive:true});fs.writeFileSync(contactsPath,JSON.stringify(items,null,2));}
+const contactsPath = path.join(process.cwd(), 'data', 'contact-messages.json');
+const isHosted = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL) || Boolean(process.env.CF_PAGES);
 
-export async function saveContactMessage(input:Omit<ContactMessage,'receivedAt'>){
-  const item:ContactMessage={...input,receivedAt:new Date().toISOString()};
-  if(redis){
-    const id=`hum-medicals:contact:${Date.now()}:${crypto.randomUUID()}`;
-    await redis.set(id,item);
-    await redis.lpush('hum-medicals:contact-messages',id);
+function readLocal(): ContactMessage[] {
+  try {
+    return JSON.parse(fs.readFileSync(contactsPath, 'utf8') || '[]') as ContactMessage[];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocal(items: ContactMessage[]) {
+  try {
+    fs.mkdirSync(path.dirname(contactsPath), { recursive: true });
+    fs.writeFileSync(contactsPath, JSON.stringify(items, null, 2));
+  } catch {
+    // Ignore filesystem write errors in read-only hosted environments
+  }
+}
+
+export async function saveContactMessage(input: Omit<ContactMessage, 'receivedAt'>): Promise<ContactMessage> {
+  const item: ContactMessage = { ...input, receivedAt: new Date().toISOString() };
+
+  const supabase = getSupabase();
+  if (supabase) {
+    const { error } = await supabase.from('contact_messages').insert({
+      name: item.name,
+      email: item.email,
+      subject: item.subject,
+      message: item.message,
+      received_at: item.receivedAt,
+    });
+    if (error) throw new Error(error.message);
     return item;
   }
-  if(isHosted)throw new Error('Message storage is not configured. Connect Upstash Redis in the Vercel Marketplace, then redeploy.');
-  const items=readLocal();items.unshift(item);writeLocal(items);return item;
+
+  if (isHosted) throw supabaseStorageError();
+  const items = readLocal();
+  items.unshift(item);
+  writeLocal(items);
+  return item;
 }
