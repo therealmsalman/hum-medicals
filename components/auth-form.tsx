@@ -103,9 +103,19 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-            Password
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Password
+            </label>
+            {!isSignup && (
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-teal-600 hover:underline dark:text-teal-400"
+              >
+                Forgot password?
+              </Link>
+            )}
+          </div>
           <div className="relative">
             <Lock className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
