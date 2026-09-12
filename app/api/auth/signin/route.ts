@@ -1,3 +1,27 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { authenticate, publicUser, setSession } from '@/lib/auth';
-export async function POST(request:Request){try{const {email,password}=await request.json();if(typeof email!=='string'||typeof password!=='string')return NextResponse.json({message:'Email and password are required.'},{status:400});const user=await authenticate(email,password);if(!user)return NextResponse.json({message:'Incorrect email or password.'},{status:401});setSession(user);return NextResponse.json({user:publicUser(user)});}catch(error){return NextResponse.json({message:error instanceof Error?error.message:'Unable to sign in.'},{status:503});}}
+
+export async function POST(request: Request) {
+  try {
+    const { email, password } = await request.json();
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return NextResponse.json({ message: 'Email and password are required.' }, { status: 400 });
+    }
+
+    const user = await authenticate(email, password);
+    if (!user) {
+      return NextResponse.json({ message: 'Incorrect email or password.' }, { status: 401 });
+    }
+
+    // Must be awaited so cookie headers and session records are committed
+    await setSession(user);
+
+    return NextResponse.json({ user: publicUser(user) });
+  } catch (error) {
+    console.error('[Auth] Sign in error:', error);
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : 'Unable to sign in.' },
+      { status: 503 }
+    );
+  }
+}

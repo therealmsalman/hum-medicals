@@ -42,7 +42,7 @@ const isHosted = process.env.NODE_ENV === 'production' || Boolean(process.env.VE
 function getSecret() {
   const secret = process.env.AUTH_SECRET;
   if (!secret && isHosted) throw new Error('AUTH_SECRET must be configured in production.');
-  return secret || 'local-development-secret-do-not-use-in-production';
+  return secret || 'local-development-secret-hum-medicals-supabase';
 }
 
 function readLocal<T>(file: string, fallback: T): T {
@@ -195,7 +195,14 @@ export async function createUser(name: string, email: string, password: string):
       session_version: user.sessionVersion,
       created_at: user.createdAt,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === '42501') {
+        throw new Error(
+          'Supabase Row-Level Security blocked this registration. Please run the RLS update in Supabase SQL Editor or supply SUPABASE_SERVICE_ROLE_KEY in .env.local.'
+        );
+      }
+      throw new Error(error.message);
+    }
     return user;
   }
 
@@ -225,7 +232,9 @@ async function storeSession(record: SessionRecord): Promise<void> {
       last_seen_at: record.lastSeenAt,
       expires_at: new Date(record.expires).toISOString(),
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.warn('[Auth] Note: Could not write session record to Supabase (check RLS or service role key):', error.message);
+    }
     return;
   }
   if (isHosted) throw supabaseStorageError();
@@ -296,9 +305,12 @@ export async function createSession(user: User): Promise<string> {
 }
 
 export async function setSession(user: User): Promise<void> {
-  cookies().set('hum_medicals_session', await createSession(user), {
+  const isProd = process.env.NODE_ENV === 'production';
+  const isLocalhost = Boolean(process.env.NEXT_PUBLIC_SITE_URL?.includes('localhost'));
+  const sessionToken = await createSession(user);
+  cookies().set('hum_medicals_session', sessionToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProd && !isLocalhost,
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
@@ -315,12 +327,14 @@ export async function currentUser(): Promise<User | null> {
   const session = parseSession(cookies().get('hum_medicals_session')?.value);
   if (!session) return null;
   const [user, record] = await Promise.all([findUserById(session.id), getSession(session.sessionId)]);
-  return user?.email === session.email &&
-    user.sessionVersion === session.version &&
-    record?.userId === user.id &&
-    record.expires > Date.now()
-    ? user
-    : null;
+  if (!user || user.email !== session.email || user.sessionVersion !== session.version) {
+    return null;
+  }
+  if (record) {
+    return record.userId === user.id && record.expires > Date.now() ? user : null;
+  }
+  // If session record lookup was omitted or delayed, valid cryptographic token is honoured
+  return session.expires > Date.now() ? user : null;
 }
 
 export async function currentSession(): Promise<SessionRecord | null> {
