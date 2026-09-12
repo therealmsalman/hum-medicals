@@ -14,14 +14,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Use a password with at least 8 characters.' }, { status: 400 });
     }
 
-    const { user, requiresConfirmation } = await createUser(name, email, password);
+    const { user, requiresConfirmation, activationLink } = await createUser(name, email, password);
 
     if (requiresConfirmation) {
       return NextResponse.json(
         {
           requiresConfirmation: true,
+          activationLink,
           message:
-            'Account created! A verification email has been sent by Supabase. Please check your inbox and spam folder to confirm your email before signing in.',
+            'Account registered! A verification email has been requested. Please check your inbox and spam folder to confirm your email before signing in.',
           user: publicUser(user),
         },
         { status: 201 }

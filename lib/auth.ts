@@ -39,7 +39,7 @@ function getSecret() {
   return secret || 'local-development-secret-hum-medicals-supabase';
 }
 
-function normalizedEmail(email: string) {
+export function normalizedEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
@@ -159,15 +159,78 @@ export async function createUser(
   name: string,
   email: string,
   password: string
-): Promise<{ user: User; requiresConfirmation: boolean }> {
+): Promise<{ user: User; requiresConfirmation: boolean; activationLink?: string }> {
   const normalized = normalizedEmail(email);
   const authClient = getSupabaseAuthClient();
   const db = getSupabase();
+  const adminClient = getSupabaseAdmin();
 
   if (!authClient) throw supabaseStorageError();
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   const emailRedirectTo = `${siteUrl}/auth/callback`;
+
+  // Check if user already exists in Supabase Auth
+  if (adminClient) {
+    try {
+      const { data: listData } = await adminClient.auth.admin.listUsers();
+      const existing = listData?.users?.find((u) => u.email?.toLowerCase() === normalized);
+      if (existing) {
+        if (existing.email_confirmed_at) {
+          throw new Error('An account with this email already exists and is confirmed. Please sign in or reset your password.');
+        }
+
+        // Account was created previously but unconfirmed!
+        // Generate an activation link so the user is never stuck
+        const { data: linkData } = await adminClient.auth.admin.generateLink({
+          type: 'magiclink',
+          email: normalized,
+          options: { redirectTo: emailRedirectTo },
+        });
+
+        // Attempt sending email via resend if not blocked
+        try {
+          await authClient.auth.resend({ type: 'signup', email: normalized, options: { emailRedirectTo } });
+        } catch {
+          // email rate limit may occur, ignore
+        }
+
+        const existingUser: User = {
+          id: existing.id,
+          name: name.trim() || existing.user_metadata?.name || 'Author',
+          email: normalized,
+          createdAt: existing.created_at || new Date().toISOString(),
+          sessionVersion: 1,
+        };
+
+        if (db) {
+          await db.from('users').upsert(
+            {
+              id: existing.id,
+              name: existingUser.name,
+              email: normalized,
+              password_hash: 'managed_by_supabase_auth',
+              salt: 'supabase_auth',
+              session_version: 1,
+              created_at: existingUser.createdAt,
+            },
+            { onConflict: 'id' }
+          );
+        }
+
+        return {
+          user: existingUser,
+          requiresConfirmation: true,
+          activationLink: linkData?.properties?.action_link || undefined,
+        };
+      }
+    } catch (listErr: unknown) {
+      if (listErr instanceof Error && listErr.message.includes('already exists and is confirmed')) {
+        throw listErr;
+      }
+      console.warn('[Auth] listUsers check warning:', listErr);
+    }
+  }
 
   // 1. Attempt signup with Supabase Auth (anon client triggers email confirmations)
   const { data, error } = await authClient.auth.signUp({
@@ -182,7 +245,6 @@ export async function createUser(
   if (error) {
     // If over email send rate limit on Supabase default pool:
     if (error.code === 'over_email_send_rate_limit' || error.status === 429) {
-      const adminClient = getSupabaseAdmin();
       if (adminClient) {
         console.warn('[Auth] Supabase email rate limit reached on default pool. Creating user via admin client.');
         const { data: adminData, error: adminErr } = await adminClient.auth.admin.createUser({
@@ -191,25 +253,34 @@ export async function createUser(
           user_metadata: { name: name.trim() },
           email_confirm: false,
         });
-        if (adminErr) {
-          if (adminErr.message.toLowerCase().includes('already registered')) {
-            throw new Error('An account with this email already exists in Supabase.');
-          }
+
+        if (adminErr && !adminErr.message.toLowerCase().includes('already registered')) {
           throw new Error(adminErr.message);
         }
-        if (adminData.user) {
-          const authUser = adminData.user;
+
+        // Generate immediate direct activation link
+        const { data: linkData } = await adminClient.auth.admin.generateLink({
+          type: 'signup',
+          email: normalized,
+          password,
+          options: { redirectTo: emailRedirectTo },
+        });
+
+        const authUser = adminData?.user;
+        const userId = authUser?.id || (await adminClient.auth.admin.listUsers()).data.users.find((u) => u.email?.toLowerCase() === normalized)?.id;
+
+        if (userId) {
           const newUser: User = {
-            id: authUser.id,
+            id: userId,
             name: name.trim(),
             email: normalized,
-            createdAt: authUser.created_at || new Date().toISOString(),
+            createdAt: new Date().toISOString(),
             sessionVersion: 1,
           };
           if (db) {
             await db.from('users').upsert(
               {
-                id: authUser.id,
+                id: userId,
                 name: name.trim(),
                 email: normalized,
                 password_hash: 'managed_by_supabase_auth',
@@ -220,7 +291,11 @@ export async function createUser(
               { onConflict: 'id' }
             );
           }
-          return { user: newUser, requiresConfirmation: true };
+          return {
+            user: newUser,
+            requiresConfirmation: true,
+            activationLink: linkData?.properties?.action_link || undefined,
+          };
         }
       }
       throw new Error(
@@ -242,6 +317,22 @@ export async function createUser(
   const authUser = data.user;
   const isConfirmed = Boolean(authUser.email_confirmed_at || data.session);
   const requiresConfirmation = !isConfirmed;
+
+  // Generate activation link as instant fallback if confirmation required
+  let activationLink: string | undefined = undefined;
+  if (requiresConfirmation && adminClient) {
+    try {
+      const { data: linkData } = await adminClient.auth.admin.generateLink({
+        type: 'signup',
+        email: normalized,
+        password,
+        options: { redirectTo: emailRedirectTo },
+      });
+      activationLink = linkData?.properties?.action_link || undefined;
+    } catch {
+      // ignore
+    }
+  }
 
   const newUser: User = {
     id: authUser.id,
@@ -269,7 +360,7 @@ export async function createUser(
     );
   }
 
-  return { user: newUser, requiresConfirmation };
+  return { user: newUser, requiresConfirmation, activationLink };
 }
 
 export async function authenticate(email: string, password: string): Promise<User | null> {
