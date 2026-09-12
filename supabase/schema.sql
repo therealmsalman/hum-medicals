@@ -116,16 +116,58 @@ CREATE INDEX IF NOT EXISTS idx_contact_messages_received_at ON public.contact_me
 
 -- ==============================================================================
 -- Row Level Security (RLS) Configuration
--- All operations are performed server-side through Next.js API routes.
--- We disable RLS (or grant full access to anon & service_role) to ensure
--- operations never fail regardless of whether anon or service_role key is used.
+-- Enable RLS on all exposed tables and grant service_role full administrative
+-- access. Published content allows public SELECT access.
 -- ==============================================================================
-ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sessions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.auth_actions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.submissions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.published_content DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subscribers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.contact_messages DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.rate_limits DISABLE ROW LEVEL SECURITY;
+
+-- 1. Enable RLS on all tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.auth_actions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.published_content ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscribers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- 2. Drop existing policies to prevent duplicate policy errors
+DROP POLICY IF EXISTS "Service role has full access to users" ON public.users;
+DROP POLICY IF EXISTS "Service role has full access to sessions" ON public.sessions;
+DROP POLICY IF EXISTS "Service role has full access to auth_actions" ON public.auth_actions;
+DROP POLICY IF EXISTS "Service role has full access to submissions" ON public.submissions;
+DROP POLICY IF EXISTS "Service role has full access to published_content" ON public.published_content;
+DROP POLICY IF EXISTS "Public read access to published content" ON public.published_content;
+DROP POLICY IF EXISTS "Service role has full access to subscribers" ON public.subscribers;
+DROP POLICY IF EXISTS "Service role has full access to contact_messages" ON public.contact_messages;
+DROP POLICY IF EXISTS "Service role has full access to rate_limits" ON public.rate_limits;
+
+-- 3. Create service_role full access policies
+CREATE POLICY "Service role has full access to users"
+  ON public.users FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to sessions"
+  ON public.sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to auth_actions"
+  ON public.auth_actions FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to submissions"
+  ON public.submissions FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to published_content"
+  ON public.published_content FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to subscribers"
+  ON public.subscribers FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to contact_messages"
+  ON public.contact_messages FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to rate_limits"
+  ON public.rate_limits FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- 4. Public read policy for published articles and papers
+CREATE POLICY "Public read access to published content"
+  ON public.published_content FOR SELECT TO public USING (true);
+
 
