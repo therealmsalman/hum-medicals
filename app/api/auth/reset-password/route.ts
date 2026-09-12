@@ -36,14 +36,23 @@ export async function POST(request: Request) {
 
     const updatedUser = await resetPasswordForUser(userId, password);
 
-    // Automatically set the new session cookie so the user is logged in
-    await setSession(updatedUser);
+    const isSecure = request.url.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
+    const sessionToken = await setSession(updatedUser, isSecure);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Your password has been successfully updated. You are now signed in.',
       user: publicUser(updatedUser),
     });
+    response.cookies.set('hum_medicals_session', sessionToken, {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    return response;
   } catch (error) {
     console.error('[Auth] Reset password error:', error);
     return NextResponse.json(

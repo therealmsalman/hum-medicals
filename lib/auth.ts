@@ -304,23 +304,35 @@ export async function createSession(user: User): Promise<string> {
   return `${encoded}.${crypto.createHmac('sha256', getSecret()).update(encoded).digest('base64url')}`;
 }
 
-export async function setSession(user: User): Promise<void> {
+export async function setSession(user: User, forceSecure?: boolean): Promise<string> {
   const isProd = process.env.NODE_ENV === 'production';
   const isLocalhost = Boolean(process.env.NEXT_PUBLIC_SITE_URL?.includes('localhost'));
+  const secure = forceSecure !== undefined ? forceSecure : (isProd && !isLocalhost);
   const sessionToken = await createSession(user);
   cookies().set('hum_medicals_session', sessionToken, {
     httpOnly: true,
-    secure: isProd && !isLocalhost,
+    secure,
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
   });
+  return sessionToken;
 }
 
-export async function clearSession(): Promise<void> {
+export async function clearSession(forceSecure?: boolean): Promise<void> {
   const session = parseSession(cookies().get('hum_medicals_session')?.value);
   if (session) await removeSession(session.sessionId, session.id);
-  cookies().set('hum_medicals_session', '', { httpOnly: true, path: '/', maxAge: 0 });
+  const isProd = process.env.NODE_ENV === 'production';
+  const isLocalhost = Boolean(process.env.NEXT_PUBLIC_SITE_URL?.includes('localhost'));
+  const secure = forceSecure !== undefined ? forceSecure : (isProd && !isLocalhost);
+  cookies().set('hum_medicals_session', '', {
+    httpOnly: true,
+    secure,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+    expires: new Date(0),
+  });
 }
 
 export async function currentUser(): Promise<User | null> {

@@ -36,7 +36,8 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
         return;
       }
 
-      window.location.assign(destination);
+      window.dispatchEvent(new Event('hum-medicals:auth-change'));
+      window.location.href = destination;
     } catch {
       setBusy(false);
       setMessage('A connection error occurred. Please try again.');

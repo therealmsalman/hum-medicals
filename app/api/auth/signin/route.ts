@@ -13,10 +13,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Incorrect email or password.' }, { status: 401 });
     }
 
-    // Must be awaited so cookie headers and session records are committed
-    await setSession(user);
+    const isSecure = request.url.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
+    const token = await setSession(user, isSecure);
 
-    return NextResponse.json({ user: publicUser(user) });
+    const response = NextResponse.json({ user: publicUser(user) });
+    response.cookies.set('hum_medicals_session', token, {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    return response;
   } catch (error) {
     console.error('[Auth] Sign in error:', error);
     return NextResponse.json(

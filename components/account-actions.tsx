@@ -12,8 +12,8 @@ export function AccountActions({ name }: { name: string }) {
     setBusy(true);
     try {
       await fetch('/api/auth/signout', { method: 'POST' });
-      router.push('/');
-      router.refresh();
+      window.dispatchEvent(new Event('hum-medicals:auth-change'));
+      window.location.href = '/sign-in';
     } catch {
       setBusy(false);
     }
